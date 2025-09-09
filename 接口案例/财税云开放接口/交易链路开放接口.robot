@@ -203,8 +203,43 @@ Resource          ../../接口定义/财税云开放接口.robot
         ${count3}    设置变量    ${result}[0][0]
         Run Keyword Unless    ${count3}==0    Remove Values From List    ${new_code_list}    ${code_list}[${i}]
     END
-    #数据库查询出来最终结果的交易链路，后续和接口的交易链路作对比
     Log    ${new_code_list}
+
+
+    #以下是有匹配规则时走的逻辑
+    #根据存货分类传惨决定查看匹配规则SQL
+    ${tmr_sql}    设置变量    SELECT tmr.rule_configs->'$[*].tcr_ids',tmrd.start_node ,tmrd.end_node from fc_transaction_matching_rule tmr join fc_transaction_matching_rule_delivery_node tmrd on tmr.id = tmrd.transaction_matching_rule_id where tmr.delivery_model =1 and tmr.status=1 and UNIX_TIMESTAMP()<tmr.end_time and UNIX_TIMESTAMP()>tmr.start_time and tmrd.start_node='${start_warehouse}' and tmrd.end_node='${end_warehouse}';
+    #${tmr_sql}    Run Keyword If    '1' in '${stock_categories}'     设置变量    ${tmr_sql} and tmr.rule_configs like '%存货分类 等于 商品%'
+    #...    ELSE    设置变量    ${tmr_sql}
+    #${tmr_sql}    Run Keyword If    '2' in '${stock_categories}'     设置变量    ${tmr_sql} and tmr.rule_configs like '%存货分类 等于 物料%'
+    #...    ELSE    设置变量    ${tmr_sql}
+    #${tmr_sql}    Run Keyword If    '4' in '${stock_categories}'     设置变量    ${tmr_sql} and tmr.rule_configs like '%存货分类 等于 陈列品%'
+    #...    ELSE    设置变量    ${tmr_sql}
+    #Log    ${tmr_sql}
+    @{result}    query    ${tmr_sql}
+    FOR    ${i}    IN RANGE    ${count}
+        ${tcr_ids}    Set Variable If    ${i}==0    ${result}[${i}][0]    ${tcr_ids},${result}[${i}][0]
+        #${tcr_ids}    设置变量    ${tcr_ids},${result}[${i}][0]
+    END
+    ${transaction_id}    Run Keyword If    ${count}!=0    Evaluate    "${tcr_ids}".replace("[", "").replace("]", "")
+    ...    ELSE    设置变量    0
+    Log    ${transaction_id}
+    #查询是否存在交易链路
+    @{result}    query    select count(*) from fc_transaction_chain_rule where UNIX_TIMESTAMP()<end_time and UNIX_TIMESTAMP()>start_time and status=1 and id in (${transaction_id});
+    ${length}    设置变量    ${result}[0][0]
+    @{result}    query    select code,levels->'$[*].pricing_rule_id' from fc_transaction_chain_rule where UNIX_TIMESTAMP()<end_time and UNIX_TIMESTAMP()>start_time and status=1 and id in (${transaction_id});
+    @{code_list2}    Create List
+    @{price_rule_list2}    Create List
+    FOR    ${i}    IN RANGE    ${length}
+        Append To List    ${code_list2}    ${result}[${i}][0]
+        Append To List    ${price_rule_list2}    ${result}[${i}][1]
+    END
+    Log    ${code_list2}
+
+    #MatchRule=1,且${code_list2}不为空时，要更新${new_code_list}=${code_list2}
+    ${new_code_list}    Set Variable If    ${MatchRule}==1 and ${code_list2}    ${code_list2}    ${new_code_list}
+
+    #数据库查询出来最终结果的交易链路，后续和接口的交易链路作对比
     #获取开放接口token
     ${data}    设置变量    {"app_id":"${app_id}[${env}]","app_secret":"${app_secret}[${env}]"}
     ${response}    /open/v1/applications/tokens    ${data}
@@ -313,6 +348,40 @@ Resource          ../../接口定义/财税云开放接口.robot
 #    END
 #    #数据库查询出来最终结果的交易链路，后续和接口的交易链路作对比
 #    Log    ${new_code_list}
+
+    #以下是有匹配规则时走的逻辑
+    #根据存货分类传惨决定查看匹配规则SQL
+    ${tmr_sql}    设置变量    SELECT tmr.rule_configs->'$[*].tcr_ids',tmrd.start_node ,tmrd.end_node from fc_transaction_matching_rule tmr join fc_transaction_matching_rule_delivery_node tmrd on tmr.id = tmrd.transaction_matching_rule_id where tmr.delivery_model =2 and tmr.status=1 and UNIX_TIMESTAMP()<tmr.end_time and UNIX_TIMESTAMP()>tmr.start_time and tmrd.start_node='${start_warehouse}' and tmrd.end_node='${end_warehouse}';
+    #${tmr_sql}    Run Keyword If    '1' in '${stock_categories}'     设置变量    ${tmr_sql} and tmr.rule_configs like '%存货分类 等于 商品%'
+    #...    ELSE    设置变量    ${tmr_sql}
+    #${tmr_sql}    Run Keyword If    '2' in '${stock_categories}'     设置变量    ${tmr_sql} and tmr.rule_configs like '%存货分类 等于 物料%'
+    #...    ELSE    设置变量    ${tmr_sql}
+    #${tmr_sql}    Run Keyword If    '4' in '${stock_categories}'     设置变量    ${tmr_sql} and tmr.rule_configs like '%存货分类 等于 陈列品%'
+    #...    ELSE    设置变量    ${tmr_sql}
+    #Log    ${tmr_sql}
+    @{result}    query    ${tmr_sql}
+    FOR    ${i}    IN RANGE    ${count}
+        ${tcr_ids}    Set Variable If    ${i}==0    ${result}[${i}][0]    ${tcr_ids},${result}[${i}][0]
+        #${tcr_ids}    设置变量    ${tcr_ids},${result}[${i}][0]
+    END
+    ${transaction_id}    Run Keyword If    ${count}!=0    Evaluate    "${tcr_ids}".replace("[", "").replace("]", "")
+    ...    ELSE    设置变量    0
+    Log    ${transaction_id}
+    #查询是否存在交易链路
+    @{result}    query    select count(*) from fc_transaction_chain_rule where UNIX_TIMESTAMP()<end_time and UNIX_TIMESTAMP()>start_time and status=1 and id in (${transaction_id});
+    ${length}    设置变量    ${result}[0][0]
+    @{result}    query    select code,levels->'$[*].pricing_rule_id' from fc_transaction_chain_rule where UNIX_TIMESTAMP()<end_time and UNIX_TIMESTAMP()>start_time and status=1 and id in (${transaction_id});
+    @{code_list2}    Create List
+    @{price_rule_list2}    Create List
+    FOR    ${i}    IN RANGE    ${length}
+        Append To List    ${code_list2}    ${result}[${i}][0]
+        Append To List    ${price_rule_list2}    ${result}[${i}][1]
+    END
+    Log    ${code_list2}
+
+    #MatchRule=1时要更新${new_code_list}=${code_list2}
+    ${new_code_list}    Set Variable If    ${MatchRule}==1 and ${code_list2}    ${code_list2}    ${code_list}
+
     #获取开放接口token
     ${data}    设置变量    {"app_id":"${app_id}[${env}]","app_secret":"${app_secret}[${env}]"}
     ${response}    /open/v1/applications/tokens    ${data}
@@ -325,7 +394,7 @@ Resource          ../../接口定义/财税云开放接口.robot
     @{intf_code_list}    Create List
     ${intf_code_list}    Run Keyword If    ${response.json()}[code]==0    收集接口返回的交易链路    ${response}    ${intf_code_list}
     ...    ELSE    设置变量    ${intf_code_list}
-    ${code_list}    Evaluate    sorted(${code_list})
+    ${code_list}    Evaluate    sorted(${new_code_list})
     ${intf_code_list}    Evaluate    sorted(${intf_code_list})
     Run Keyword If    ${MatchRule}==1    Should Be Equal As Strings    ${response.json()}[message]    success
     Should Be Equal    ${code_list}    ${intf_code_list}
@@ -334,11 +403,7 @@ Resource          ../../接口定义/财税云开放接口.robot
     [Arguments]    ${start_warehouse}    ${end_store}    ${stock_categories}
     #仓库子公司关系转json
     ${warehouse_subsidiary_dict}    Evaluate    json.loads('''${warehouse_subsidiary}''')
-    #查询是否存在匹配规则
-    #@{result}    query    SELECT count(*) FROM fc_transaction_matching_rule tmr JOIN fc_transaction_matching_rule_delivery_node tmrd on tmr.id = tmrd.transaction_matching_rule_id where UNIX_TIMESTAMP()<tmr.end_time and UNIX_TIMESTAMP()>tmr.start_time and tmr.status=1 and tmrd.`start_node` = '${start_warehouse}' and tmrd.`end_node` = '${end_warehouse}' and `delivery_model` in (1);
-    #${count}    设置变量    ${result}[0][0]
-    #MatchRule=0则没有匹配规则，1则有
-    #${MatchRule}    Set Variable If    ${count}==0    0    1
+
     #数仓获取门店对应的子公司
     @{result}    query    select entity_code from ods.ods_retail_biz_store_db_rt_store_info_rt where store_code='${end_store}';
     ...    alias=dw    #数仓的数据库查询要加alias=dw
@@ -359,6 +424,12 @@ Resource          ../../接口定义/财税云开放接口.robot
     ${end_subsidiary_list}    Evaluate    "${end_subsidiary_list}".replace("[", "").replace("]", "")
     log    ${start_subsidiary_list}
     log    ${end_subsidiary_list}
+    #查询是否存在匹配规则
+    @{result}    query    SELECT count(*) FROM fc_transaction_matching_rule tmr JOIN fc_transaction_matching_rule_delivery_node tmrd on tmr.id = tmrd.transaction_matching_rule_id where UNIX_TIMESTAMP()<tmr.end_time and UNIX_TIMESTAMP()>tmr.start_time and tmr.status=1 and tmrd.`start_node` = '${start_warehouse}' and tmrd.`end_node` in (${end_subsidiary_list}) and `delivery_model` in (3);
+    ${count}    设置变量    ${result}[0][0]
+    #MatchRule=0则没有匹配规则，1则有
+    ${MatchRule}    Set Variable If    ${count}==0    0    1
+
     #查询是否存在交易链路
     @{result}    query    select count(*) from fc_transaction_chain_rule where shipping_subsidiary_code in (${start_subsidiary_list}) and receiving_subsidiary_code in (${end_subsidiary_list}) and UNIX_TIMESTAMP()<end_time and UNIX_TIMESTAMP()>start_time and status=1 and (levels like '%"node_types": [1, 2]%' or levels like '%"node_types": [2, 1]%' or levels like '%"node_types": [2]%') and (levels like '%"node_types": [3, 4]%' or levels like '%"node_types": [4, 3]%' or levels like '%"node_types": [3]%');
     ${length}    设置变量    ${result}[0][0]
@@ -425,6 +496,41 @@ Resource          ../../接口定义/财税云开放接口.robot
     END
     #数据库查询出来最终结果的交易链路，后续和接口的交易链路作对比
     Log    ${new_code_list}
+
+    #以下是有匹配规则时走的逻辑
+    #根据存货分类传惨决定查看匹配规则SQL
+    ${tmr_sql}    设置变量    SELECT tmr.rule_configs->'$[*].tcr_ids',tmrd.start_node ,tmrd.end_node from fc_transaction_matching_rule tmr join fc_transaction_matching_rule_delivery_node tmrd on tmr.id = tmrd.transaction_matching_rule_id where tmr.delivery_model =3 and tmr.status=1 and UNIX_TIMESTAMP()<tmr.end_time and UNIX_TIMESTAMP()>tmr.start_time and tmrd.start_node='${start_warehouse}' and tmrd.end_node in (${end_subsidiary_list});
+    #${tmr_sql}    Run Keyword If    '1' in '${stock_categories}'     设置变量    ${tmr_sql} and tmr.rule_configs like '%存货分类 等于 商品%'
+    #...    ELSE    设置变量    ${tmr_sql}
+    #${tmr_sql}    Run Keyword If    '2' in '${stock_categories}'     设置变量    ${tmr_sql} and tmr.rule_configs like '%存货分类 等于 物料%'
+    #...    ELSE    设置变量    ${tmr_sql}
+    #${tmr_sql}    Run Keyword If    '4' in '${stock_categories}'     设置变量    ${tmr_sql} and tmr.rule_configs like '%存货分类 等于 陈列品%'
+    #...    ELSE    设置变量    ${tmr_sql}
+    #Log    ${tmr_sql}
+    @{result}    query    ${tmr_sql}
+    FOR    ${i}    IN RANGE    ${count}
+        ${tcr_ids}    Set Variable If    ${i}==0    ${result}[${i}][0]    ${tcr_ids},${result}[${i}][0]
+        #${tcr_ids}    设置变量    ${tcr_ids},${result}[${i}][0]
+    END
+    ${transaction_id}    Run Keyword If    ${count}!=0    Evaluate    "${tcr_ids}".replace("[", "").replace("]", "")
+    ...    ELSE    设置变量    0
+    Log    ${transaction_id}
+    #查询是否存在交易链路
+    @{result}    query    select count(*) from fc_transaction_chain_rule where UNIX_TIMESTAMP()<end_time and UNIX_TIMESTAMP()>start_time and status=1 and id in (${transaction_id});
+    ${length}    设置变量    ${result}[0][0]
+    @{result}    query    select code,levels->'$[*].pricing_rule_id' from fc_transaction_chain_rule where UNIX_TIMESTAMP()<end_time and UNIX_TIMESTAMP()>start_time and status=1 and id in (${transaction_id});
+    @{code_list2}    Create List
+    @{price_rule_list2}    Create List
+    FOR    ${i}    IN RANGE    ${length}
+        Append To List    ${code_list2}    ${result}[${i}][0]
+        Append To List    ${price_rule_list2}    ${result}[${i}][1]
+    END
+    Log    ${code_list2}
+
+    #MatchRule=1时要更新${new_code_list}=${code_list2}
+    ${new_code_list}    Set Variable If    ${MatchRule}==1 and ${code_list2}    ${code_list2}    ${new_code_list}
+
+
     #获取开放接口token
     ${data}    设置变量    {"app_id":"${app_id}[${env}]","app_secret":"${app_secret}[${env}]"}
     ${response}    /open/v1/applications/tokens    ${data}
@@ -446,11 +552,7 @@ Resource          ../../接口定义/财税云开放接口.robot
     [Arguments]    ${start_warehouse}    ${end_store}    ${stock_categories}
     #仓库子公司关系转json
     ${warehouse_subsidiary_dict}    Evaluate    json.loads('''${warehouse_subsidiary}''')
-    #查询是否存在匹配规则
-    #@{result}    query    SELECT count(*) FROM fc_transaction_matching_rule tmr JOIN fc_transaction_matching_rule_delivery_node tmrd on tmr.id = tmrd.transaction_matching_rule_id where UNIX_TIMESTAMP()<tmr.end_time and UNIX_TIMESTAMP()>tmr.start_time and tmr.status=1 and tmrd.`start_node` = '${start_warehouse}' and tmrd.`end_node` = '${end_warehouse}' and `delivery_model` in (1);
-    #${count}    设置变量    ${result}[0][0]
-    #MatchRule=0则没有匹配规则，1则有
-    #${MatchRule}    Set Variable If    ${count}==0    0    1
+
     #数仓获取门店对应的子公司
     @{result}    query    select entity_code from ods.ods_retail_biz_store_db_rt_store_info_rt where store_code='${end_store}';
     ...    alias=dw    #数仓的数据库查询要加alias=dw
@@ -471,6 +573,12 @@ Resource          ../../接口定义/财税云开放接口.robot
     ${end_subsidiary_list}    Evaluate    "${end_subsidiary_list}".replace("[", "").replace("]", "")
     log    ${start_subsidiary_list}
     log    ${end_subsidiary_list}
+    #查询是否存在匹配规则
+    @{result}    query    SELECT count(*) FROM fc_transaction_matching_rule tmr JOIN fc_transaction_matching_rule_delivery_node tmrd on tmr.id = tmrd.transaction_matching_rule_id where UNIX_TIMESTAMP()<tmr.end_time and UNIX_TIMESTAMP()>tmr.start_time and tmr.status=1 and tmrd.`start_node` = '${start_warehouse}' and tmrd.`end_node` in (${end_subsidiary_list}) and `delivery_model` in (4);
+    ${count}    设置变量    ${result}[0][0]
+    #MatchRule=0则没有匹配规则，1则有
+    ${MatchRule}    Set Variable If    ${count}==0    0    1
+
     #查询是否存在交易链路
     @{result}    query    select count(*) from fc_transaction_chain_rule where shipping_subsidiary_code in (${start_subsidiary_list}) and receiving_subsidiary_code in (${end_subsidiary_list}) and UNIX_TIMESTAMP()<end_time and UNIX_TIMESTAMP()>start_time and status=1;
     ${length}    设置变量    ${result}[0][0]
@@ -537,6 +645,40 @@ Resource          ../../接口定义/财税云开放接口.robot
 #    END
 #    #数据库查询出来最终结果的交易链路，后续和接口的交易链路作对比
 #    Log    ${new_code_list}
+
+    #以下是有匹配规则时走的逻辑
+    #根据存货分类传惨决定查看匹配规则SQL
+    ${tmr_sql}    设置变量    SELECT tmr.rule_configs->'$[*].tcr_ids',tmrd.start_node ,tmrd.end_node from fc_transaction_matching_rule tmr join fc_transaction_matching_rule_delivery_node tmrd on tmr.id = tmrd.transaction_matching_rule_id where tmr.delivery_model =4 and tmr.status=1 and UNIX_TIMESTAMP()<tmr.end_time and UNIX_TIMESTAMP()>tmr.start_time and tmrd.start_node='${start_warehouse}' and tmrd.end_node in (${end_subsidiary_list});
+    #${tmr_sql}    Run Keyword If    '1' in '${stock_categories}'     设置变量    ${tmr_sql} and tmr.rule_configs like '%存货分类 等于 商品%'
+    #...    ELSE    设置变量    ${tmr_sql}
+    #${tmr_sql}    Run Keyword If    '2' in '${stock_categories}'     设置变量    ${tmr_sql} and tmr.rule_configs like '%存货分类 等于 物料%'
+    #...    ELSE    设置变量    ${tmr_sql}
+    #${tmr_sql}    Run Keyword If    '4' in '${stock_categories}'     设置变量    ${tmr_sql} and tmr.rule_configs like '%存货分类 等于 陈列品%'
+    #...    ELSE    设置变量    ${tmr_sql}
+    #Log    ${tmr_sql}
+    @{result}    query    ${tmr_sql}
+    FOR    ${i}    IN RANGE    ${count}
+        ${tcr_ids}    Set Variable If    ${i}==0    ${result}[${i}][0]    ${tcr_ids},${result}[${i}][0]
+        #${tcr_ids}    设置变量    ${tcr_ids},${result}[${i}][0]
+    END
+    ${transaction_id}    Run Keyword If    ${count}!=0    Evaluate    "${tcr_ids}".replace("[", "").replace("]", "")
+    ...    ELSE    设置变量    0
+    Log    ${transaction_id}
+    #查询是否存在交易链路
+    @{result}    query    select count(*) from fc_transaction_chain_rule where UNIX_TIMESTAMP()<end_time and UNIX_TIMESTAMP()>start_time and status=1 and id in (${transaction_id});
+    ${length}    设置变量    ${result}[0][0]
+    @{result}    query    select code,levels->'$[*].pricing_rule_id' from fc_transaction_chain_rule where UNIX_TIMESTAMP()<end_time and UNIX_TIMESTAMP()>start_time and status=1 and id in (${transaction_id});
+    @{code_list2}    Create List
+    @{price_rule_list2}    Create List
+    FOR    ${i}    IN RANGE    ${length}
+        Append To List    ${code_list2}    ${result}[${i}][0]
+        Append To List    ${price_rule_list2}    ${result}[${i}][1]
+    END
+    Log    ${code_list2}
+
+    #MatchRule=1时要更新${new_code_list}=${code_list2}
+    ${new_code_list}    Set Variable If    ${MatchRule}==1 and ${code_list2}    ${code_list2}    ${code_list}
+
     #获取开放接口token
     ${data}    设置变量    {"app_id":"${app_id}[${env}]","app_secret":"${app_secret}[${env}]"}
     ${response}    /open/v1/applications/tokens    ${data}
