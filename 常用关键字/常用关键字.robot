@@ -2,7 +2,6 @@
 Library           requests
 Library           RequestsLibrary
 Library           json
-Library           SeleniumLibrary
 Library           urllib3
 Library           DatabaseLibrary
 Resource          ../常用变量/常用变量.robot

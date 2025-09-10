@@ -4,7 +4,6 @@ Suite Teardown    断开所有数据库连接
 Library           requests
 Library           RequestsLibrary
 Library           json
-Library           SeleniumLibrary
 Library           urllib3
 Library           DatabaseLibrary
 Library           Collections
